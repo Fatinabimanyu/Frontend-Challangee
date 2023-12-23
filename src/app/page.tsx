@@ -1,67 +1,92 @@
-"use client";
+import { useState, useEffect } from "react";
+("use client");
+interface Idea {
+  title: string;
+  description: string;
+  // Add more properties as needed
+}
 
-import React, { useEffect, useState } from "react";
-import { getAllPost, getAllUser } from "../../api";
-import { IPost, IUser } from "../../type/type";
-import PostComponent from "./components/PostComponent";
-import UserComponent from "./components/UserComponent";
-import DataPagination from "./components/DataPagination";
-import Navbar from "./components/Navbar";
+interface ApiResponse {
+  data: Idea[];
+  meta: {
+    total_pages: number;
+  };
+}
 
-export default function Home() {
-  // const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [dataPost, setDataPost] = useState<IPost[] | undefined | any>();
-  const [dataUser, setDataUser] = useState<IUser[] | undefined | any>();
-  const [pageData, setPageData] = useState<number>(1);
-  const [pageSizeData, setPageSizeData] = useState<number>(10);
-  const [totalPages, setTotalPages] = useState<number>();
-  const [query, setQuery] = useState<string>("");
-  // const [post, setPost] = useState([])
-  // const [data, user] = await Promise.all([getAllPost(30, 5), getAllUser(100)]);
-  // const user = await getAllUser(50);
+const ApiDataPage = () => {
+  const client = useClient();
+  const [data, setData] = useState<Idea[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  const fetchData = async (pageNumber: number) => {
+    const page_size = 10;
+    const sort = "asc";
+
+    try {
+      setLoading(true);
+
+      const response = await client(
+        `https://suitmedia-backend.suitdev.com/api/ideas?page[number]=${pageNumber}&page[size]=${page_size}&append[]=small_image&append[]=medium_image&sort=${sort}`
+      );
+
+      setData(response.data.data);
+      setTotalPages(response.data.meta.total_pages);
+      setError(null);
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        setError(`Error fetching data: ${error.message}`);
+      } else {
+        setError("Error fetching data");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      const data: IPost[] = await getAllPost(pageSizeData, pageData, query);
-      const user: IUser[] = await getAllUser(50, 1, "");
-      // const totalPages = parseInt(getAllPost.headers.get("X-Pagination-Pages"));
-      // const totalPages = parseInt(response.headers.get("X-Pagination-Pages"));
-      // const totalPages = parseInt(data.get("X-Pagination-Pages"))
-      console.log(data);
-      // setTotalPages(Number(data.header))
-      setDataPost(data);
-      setDataUser(user);
-    };
-    fetchData();
-    console.log(totalPages);
-  }, [pageData, pageSizeData, query]);
+    fetchData(currentPage);
+  }, [currentPage]);
 
-  const handlePaginationChange = async (page: number, pageSize: number) => {
-    // const dataPagi = await getAllPost(page, pageSize);
-    setPageData(page);
-    setPageSizeData(pageSize);
-    console.log({ page, pageSize });
-  };
   return (
-    <div className="w-full bg-white flex flex-col justify-center items-center py-8">
-      {/* <button className="absolute top-10 left-24">Back</button> */}
-      <div className="w-[800px] flex flex-col justify-center items-center ">
-        <div>
-          <Navbar />
-        </div>
-        <p className="font-bold text-3xl my-8">BLOG</p>
-        <input
-          className="text-black p-2 w-full mb-4"
-          placeholder="Search Post"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <PostComponent post={dataPost} owner={dataUser} />
-        <div className="w-full flex justify-center bg-blue-400 p-1">
-          <DataPagination onChangePagination={handlePaginationChange} />
-          {/* <Pagination defaultCurrent={1} current={2} total={500} /> */}
-        </div>
+    <div>
+      <h1>API Data Page with Pagination</h1>
+      {loading && <p>Loading...</p>}
+      {error && <p>{error}</p>}
+      <ul>
+        {data.map((item, index) => (
+          <li key={index}>
+            <strong>{item.title}</strong>
+            <p>{item.description}</p>
+            {/* Add more properties as needed */}
+          </li>
+        ))}
+      </ul>
+      <div>
+        <p>
+          Page {currentPage} of {totalPages}
+        </p>
+        <button
+          disabled={currentPage === 1}
+          onClick={() => handlePageChange(currentPage - 1)}
+        >
+          Previous
+        </button>
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => handlePageChange(currentPage + 1)}
+        >
+          Next
+        </button>
       </div>
     </div>
   );
-}
+};
+
+export default ApiDataPage;
